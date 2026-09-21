@@ -39,7 +39,7 @@ def get_shopper(connection):
         print(f"Error: no shopper was found with id {entered_id}.")
         return None
 
-    print(f"\nWelcome {shopper['shopper_first_name']} {shopper['shopper_surname']}!")
+    print(f"\nWelcome {shopper['shopper_first_name']} {shopper['shopper_surname']}!\n")
     return shopper
 
 def get_current_basket(connection, shopper_id):
@@ -62,7 +62,9 @@ def get_current_basket(connection, shopper_id):
 
 def display_menu():
     """Print the main menu and return the option number chosen by the user."""
-    print("\n--- Parana Shopper Main Menu ---")
+    print("================================")
+    print("--- Parana Shopper Main Menu ---")
+    print("================================")
     print("[1] Display your order history")
     print("[2] Add an item to your basket")
     print("[3] View your basket")
@@ -72,7 +74,7 @@ def display_menu():
     print("[7] Exit")
 
     while True:
-        choice = input("\nEnter the number against the menu option you want to choose (1-7):").strip()
+        choice = input("\nEnter the number against the menu option you want to choose (1-7): ").strip()
         if choice in ("1", "2", "3", "4", "5", "6", "7"):
             return int(choice)
         print("Please enter a number between 1 and 7.")
@@ -282,6 +284,75 @@ def add_item_to_basket(connection, shopper_id, current_basket_id):
 
     return current_basket_id
 
+def display_basket(connection, basket_id):
+    """Display the contents of the current basket with a total cost """
+
+    # No basket has been created
+    if basket_id is None:
+        print("\nYour basket is empty")
+        return []
+
+    query = """
+        SELECT bc.product_id,
+               bc.seller_id,
+               p.product_description,
+               se.seller_name,
+               bc.quantity,
+               bc.price
+        FROM basket_contents bc
+        JOIN products p ON bc.product_id = p.product_id
+        JOIN sellers se ON bc.seller_id = se.seller_id
+        WHERE bc.basket_id = ?
+        ORDER BY p.product_description
+    """
+
+    items = connection.execute(query, (basket_id,)).fetchall()
+
+    # The basket exists but every item has been removed
+    if not items:
+        print("\nYour basket is empty")
+        return []
+
+    # Column widths, used for the headings, underlines and data rows
+    widths = [13, 45, 22, 6, 12, 12]
+    headings = ["Basket Item", "Product Description", "Seller Name",
+                "Qty", "Price", "Total"]
+
+    title = "Basket Contents"
+    print(f"\n{title}")
+    print("-" * len(title))
+
+    heading_line = ""
+    dashes_line = ""
+    for heading, width in zip(headings, widths):
+        heading_line += f"{heading:<{width}}"
+        dashes_line += f"{'-' * len(heading):<{width}}"
+
+    print(f"\n{heading_line}")
+    print(dashes_line)
+
+    basket_total = 0
+
+    # Number each item from 1 and add its cost to the running total
+    for item_no, item in enumerate(items, start=1):
+        line_total = item["price"] * item["quantity"]
+        basket_total += line_total
+
+        line = ""
+        line += f"{item_no:<{widths[0]}}"
+        line += f"{item['product_description'][:widths[1] - 2]:<{widths[1]}}"
+        line += f"{item['seller_name'][:widths[2] - 2]:<{widths[2]}}"
+        line += f"{item['quantity']:<{widths[3]}}"
+        line += f"{'£' + format(item['price'], '.2f'):<{widths[4]}}"
+        line += f"{'£' + format(line_total, '.2f'):<{widths[5]}}"
+        print(line)
+
+    # Basket total, aligned under the Total column
+    label_width = sum(widths[:5])
+    print(f"\n{'Basket Total':>{label_width - 2}}  £{basket_total:,.2f}")
+
+    return items
+
 
 if __name__ == "__main__":
     conn = connect_to_database()
@@ -310,6 +381,8 @@ if __name__ == "__main__":
             display_order_history(conn, shopper_id)
         elif option == 2:
             current_basket_id = add_item_to_basket(conn, shopper_id, current_basket_id)
+        elif option == 3:
+            display_basket(conn, current_basket_id)
         elif option == 7:
             print("\nThank you for using Parana. Goodbye.")
             break
