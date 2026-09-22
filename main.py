@@ -412,6 +412,52 @@ def checkout_basket(connection, shopper_id, basket_id):
     # The basket has been deleted, so there is no longer a current basket
     return None
 
+def remove_item_from_basket(connection, basket_id):
+    """Remove an item from the current basket"""
+
+    # Display the basket, the function shows 'Your basket is empty' itself
+    items = display_basket(connection, basket_id)
+
+    if not items:
+        return
+
+    # Only ask which item if there is more than one to choose from
+    if len(items) == 1:
+        selected_item = items[0]
+        print("\nThere is only one item in your basket, so this is the one that will be removed.")
+    else:
+        while True:
+            entered = input(f"\nEnter the basket item no. you want to remove (1-{len(items)}): ").strip()
+            if entered.isdigit() and 1 <= int(entered) <= len(items):
+                selected_item = items[int(entered) - 1]
+                break
+            print("The basket item no. you have entered is invalid")
+
+    # Confirm before deleting anything, accepting only Y or N
+    while True:
+        answer = input(f"\nAre you sure you want to remove {selected_item['product_description']}? (Y or N): ").strip().upper()
+        if answer in ("Y", "N"):
+            break
+        print("Please enter Y or N.")
+
+    if answer == "N":
+        print("\nThe item has not been removed.")
+        display_basket(connection, basket_id)
+        return
+
+    # Delete the selected row from the current basket
+    connection.execute("""
+        DELETE FROM basket_contents
+        WHERE basket_id = ? AND product_id = ? AND seller_id = ?
+    """, (basket_id, selected_item["product_id"], selected_item["seller_id"]))
+
+    connection.commit()
+
+    print(f"\n{selected_item['product_description']} has been removed from your basket")
+
+    # Display the basket again, it shows 'Your basket is empty' if nothing remains
+    display_basket(connection, basket_id)
+
 def change_item_quantity(connection, basket_id):
     """Change the quantity of an item in the current basket"""
 
@@ -488,6 +534,8 @@ if __name__ == "__main__":
             current_basket_id = add_item_to_basket(conn, shopper_id, current_basket_id)
         elif option == 3:
             display_basket(conn, current_basket_id)
+        elif option == 5:
+            remove_item_from_basket(conn, current_basket_id)
         elif option == 4:
             change_item_quantity(conn, current_basket_id)
         elif option == 6:
