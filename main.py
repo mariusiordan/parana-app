@@ -393,7 +393,7 @@ def checkout_basket(connection, shopper_id, basket_id):
             """, (order_id, item["product_id"], item["seller_id"],
                   item["quantity"], item["price"]))
 
-        # Delete the basket; contents first, as they reference the basket
+        # Delete the basket, contents first, as they reference the basket
         connection.execute("DELETE FROM basket_contents WHERE basket_id = ?", (basket_id,))
         connection.execute("DELETE FROM shopper_baskets WHERE basket_id = ?", (basket_id,))
 
@@ -411,6 +411,52 @@ def checkout_basket(connection, shopper_id, basket_id):
 
     # The basket has been deleted, so there is no longer a current basket
     return None
+
+def change_item_quantity(connection, basket_id):
+    """Change the quantity of an item in the current basket"""
+
+    # Display the basket, the function shows 'Your basket is empty' itself
+    items = display_basket(connection, basket_id)
+
+    if not items:
+        return
+
+    # Only ask which item if there is more than one to choose from
+    if len(items) == 1:
+        selected_item = items[0]
+        print("\nThere is only one item in your basket, so this is the one that will be changed.")
+    else:
+        while True:
+            entered = input(f"\nEnter the basket item no. you want to update (1-{len(items)}): ").strip()
+            if entered.isdigit() and 1 <= int(entered) <= len(items):
+                selected_item = items[int(entered) - 1]
+                break
+            print("The basket item no. you have entered is invalid")
+
+    # Prompt for the new quantity, which must be greater than zero
+    new_quantity = 0
+    while new_quantity <= 0:
+        try:
+            new_quantity = int(input("Enter the new quantity for this item: "))
+            if new_quantity <= 0:
+                print("The quantity must be greater than 0")
+        except ValueError:
+            print("The quantity must be greater than 0")
+            new_quantity = 0
+
+    # Update the row for this basket, product and seller
+    connection.execute("""
+        UPDATE basket_contents
+        SET quantity = ?
+        WHERE basket_id = ? AND product_id = ? AND seller_id = ?
+    """, (new_quantity, basket_id, selected_item["product_id"], selected_item["seller_id"]))
+
+    connection.commit()
+
+    print(f"\nThe quantity for {selected_item['product_description']} has been changed to {new_quantity}")
+
+    # Display the basket again with the recalculated total
+    display_basket(connection, basket_id)
 
 
 if __name__ == "__main__":
@@ -442,6 +488,8 @@ if __name__ == "__main__":
             current_basket_id = add_item_to_basket(conn, shopper_id, current_basket_id)
         elif option == 3:
             display_basket(conn, current_basket_id)
+        elif option == 4:
+            change_item_quantity(conn, current_basket_id)
         elif option == 6:
             current_basket_id = checkout_basket(conn, shopper_id, current_basket_id)
         elif option == 7:
