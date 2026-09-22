@@ -252,7 +252,8 @@ def add_item_to_basket(connection, shopper_id, current_basket_id):
             SET seq = ?
             WHERE name = 'shopper_baskets'
         """, (current_basket_id,))
-        # Add the product to the basket
+
+    # Add the product to the basket
     connection.execute("""
         INSERT INTO basket_contents (basket_id, product_id, seller_id, quantity, price)
         VALUES (?, ?, ?, ?, ?)
@@ -534,16 +535,14 @@ if __name__ == "__main__":
             current_basket_id = add_item_to_basket(conn, shopper_id, current_basket_id)
         elif option == 3:
             display_basket(conn, current_basket_id)
-        elif option == 5:
-            remove_item_from_basket(conn, current_basket_id)
         elif option == 4:
             change_item_quantity(conn, current_basket_id)
+        elif option == 5:
+            remove_item_from_basket(conn, current_basket_id)
         elif option == 6:
             current_basket_id = checkout_basket(conn, shopper_id, current_basket_id)
         elif option == 7:
             print("\nThank you for using Parana. Goodbye.")
             break
-        else:
-            print("\nThis option has not been implemented yet.")
-
+       
     conn.close()
